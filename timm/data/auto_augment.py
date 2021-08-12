@@ -14,15 +14,17 @@ Papers:
     Learning Data Augmentation Strategies for Object Detection - https://arxiv.org/abs/1906.11172
     RandAugment: Practical automated data augmentation... - https://arxiv.org/abs/1909.13719
     AugMix: A Simple Data Processing Method to Improve Robustness and Uncertainty - https://arxiv.org/abs/1912.02781
+    TrivialAugment: Tuning-free Yet State-of-the-Art Data Augmentation - https://arxiv.org/abs/2103.10158
 
 Hacked together by / Copyright 2020 Ross Wightman
 """
 import random
 import math
 import re
-from PIL import Image, ImageOps, ImageEnhance, ImageChops
+from PIL import Image, ImageOps, ImageEnhance
 import PIL
 import numpy as np
+from . import aug_lib
 
 
 _PIL_VER = tuple([int(x) for x in PIL.__version__.split('.')[:2]])
@@ -610,11 +612,11 @@ def _select_rand_weights(weight_idx=0, transforms=None):
     return probs
 
 
-def rand_augment_ops(magnitude=10, hparams=None, transforms=None):
+def rand_augment_ops(magnitude=10, hparams=None, transforms=None, application_prob=0.5):
     hparams = hparams or _HPARAMS_DEFAULT
     transforms = transforms or _RAND_TRANSFORMS
     return [AugmentOp(
-        name, prob=0.5, magnitude=magnitude, hparams=hparams) for name in transforms]
+        name, prob=application_prob, magnitude=magnitude, hparams=hparams) for name in transforms]
 
 
 class RandAugment:
@@ -651,9 +653,24 @@ def rand_augment_transform(config_str, hparams):
 
     :return: A PyTorch compatible Transform
     """
+    if config_str.startswith('ta'):
+        print("Run TA.")
+        aug_lib.set_augmentation_space('wide_standard', 31)
+        print(aug_lib.min_max_vals)
+        return aug_lib.TrivialAugment()
+    elif config_str.startswith('ua'):
+        print("Run UA.")
+        aug_lib.set_augmentation_space('uniaug', 31)
+        print(aug_lib.min_max_vals)
+        return aug_lib.UniAugment()
+    elif config_str.startswith('ra_'):
+        print('Run RA.')
+        c = config_str[len('ra_'):]
+        return aug_lib.RandAugment(*[int(v) for v in c.split('_')])
     magnitude = _MAX_LEVEL  # default to _MAX_LEVEL for magnitude (currently 10)
     num_layers = 2  # default to 2 ops per image
     weight_idx = None  # default to no probability weights for op choice
+    application_prob = 0.5 # default to dropping every second augmentation application
     transforms = _RAND_TRANSFORMS
     config = config_str.split('-')
     assert config[0] == 'rand'
@@ -675,11 +692,14 @@ def rand_augment_transform(config_str, hparams):
             num_layers = int(val)
         elif key == 'w':
             weight_idx = int(val)
+        elif key == 'p':
+            application_prob = float(application_prob)
         else:
             assert False, 'Unknown RandAugment config section'
-    ra_ops = rand_augment_ops(magnitude=magnitude, hparams=hparams, transforms=transforms)
+    ra_ops = rand_augment_ops(magnitude=magnitude, hparams=hparams, transforms=transforms, application_prob=application_prob)
     choice_weights = None if weight_idx is None else _select_rand_weights(weight_idx)
     return RandAugment(ra_ops, num_layers, choice_weights=choice_weights)
+
 
 
 _AUGMIX_TRANSFORMS = [
@@ -820,3 +840,4 @@ def augment_and_mix_transform(config_str, hparams):
             assert False, 'Unknown AugMix config section'
     ops = augmix_ops(magnitude=magnitude, hparams=hparams)
     return AugMixAugment(ops, alpha=alpha, width=width, depth=depth, blended=blended)
+

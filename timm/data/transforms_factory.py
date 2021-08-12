@@ -8,10 +8,10 @@ import math
 import torch
 from torchvision import transforms
 
-from timm.data.constants import IMAGENET_DEFAULT_MEAN, IMAGENET_DEFAULT_STD, DEFAULT_CROP_PCT
-from timm.data.auto_augment import rand_augment_transform, augment_and_mix_transform, auto_augment_transform
-from timm.data.transforms import _pil_interp, RandomResizedCropAndInterpolation, ToNumpy, ToTensor
-from timm.data.random_erasing import RandomErasing
+from .constants import IMAGENET_DEFAULT_MEAN, IMAGENET_DEFAULT_STD, DEFAULT_CROP_PCT
+from .auto_augment import rand_augment_transform, augment_and_mix_transform, auto_augment_transform
+from .transforms import _pil_interp, RandomResizedCropAndInterpolation, ToNumpy, ToTensor
+from .random_erasing import RandomErasing
 
 
 def transforms_noaug_train(
@@ -88,7 +88,11 @@ def transforms_imagenet_train(
         )
         if interpolation and interpolation != 'random':
             aa_params['interpolation'] = _pil_interp(interpolation)
-        if auto_augment.startswith('rand'):
+
+        if auto_augment == 'ta':
+            auto_augment = 'rand-mstdinf-p1'
+
+        if auto_augment.startswith('rand') or auto_augment.startswith('ta') or auto_augment.startswith('ra_') or auto_augment.startswith('ua'):
             secondary_tfl += [rand_augment_transform(auto_augment, aa_params)]
         elif auto_augment.startswith('augmix'):
             aa_params['translate_pct'] = 0.3

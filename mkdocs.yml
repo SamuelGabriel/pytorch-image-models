@@ -1,7 +1,7 @@
 site_name: 'Pytorch Image Models'
 site_description: 'Pretained Image Recognition Models'
-repo_name: 'rwightman/pytorch-image-models'
-repo_url: 'https://github.com/rwightman/pytorch-image-models'
+repo_name: 'rwightman/pytorch_image_models'
+repo_url: 'https://github.com/rwightman/pytorch_image_models'
 nav:
   - index.md
   - models.md
